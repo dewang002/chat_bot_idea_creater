@@ -51,49 +51,68 @@ const displayChoices = (choices) => {
 // Function to handle idea selection from user input
 const handleUserInput = async () => {
   const message = userInput.value.trim().toLowerCase();
-
+  console.log(message);
+  
   if (waitingForSelection) {
-    if (message === "done") {
-      if (selectedNumbers.length > 0) {
-        waitingForSelection = false;
-        userInput.value = "";
-        await selectIdeas(selectedNumbers);
+    // Handle single number input
+    if (/^\d+$/.test(message)) {
+      const selectedNumber = parseInt(message);
+      if (selectedNumber >= 1 && selectedNumber <= 3) {
+        if (selectedNumbers.includes(selectedNumber)) {
+          appendMessage(
+            "You've already selected this idea. Choose a different one.",
+            "bot-message"
+          );
+        } else if (selectedNumbers.length >= 2) {
+          appendMessage(
+            "You can only select up to 2 ideas.",
+            "bot-message"
+          );
+        } else {
+          selectedNumbers.push(selectedNumber);
+          userInput.value = "";
+          await selectIdeas(selectedNumbers);
+        }
       } else {
         appendMessage(
-          "Please select at least one idea before typing 'done'.",
+          "Please select a number between 1 and 3.",
           "bot-message"
         );
       }
-      return;
     }
-
-    // Check if input is a valid number (1-3)
-    const selectedNumber = parseInt(message);
-    if (selectedNumber >= 1 && selectedNumber <= 3) {
-      if (selectedNumbers.includes(selectedNumber)) {
-        appendMessage(
-          "You've already selected this idea. Choose a different one or type 'done'.",
-          "bot-message"
-        );
-      } else if (selectedNumbers.length >= 2) {
-        appendMessage(
-          "You can only select up to 2 ideas. Type 'done' to proceed.",
-          "bot-message"
-        );
+    // Handle "number and number" format
+    else if (message.includes('and')) {
+      const numbers = message.split('and')
+        .map(num => parseInt(num.trim()))
+        .filter(num => !isNaN(num));
+      
+      if (numbers.length === 2) {
+        if (numbers.every(num => num >= 1 && num <= 3)) {
+          if (numbers[0] === numbers[1]) {
+            appendMessage(
+              "Please select two different numbers.",
+              "bot-message"
+            );
+          } else {
+            selectedNumbers = numbers;
+            userInput.value = "";
+            await selectIdeas(selectedNumbers);
+          }
+        } else {
+          appendMessage(
+            "Please select numbers between 1 and 3.",
+            "bot-message"
+          );
+        }
       } else {
-        selectedNumbers.push(selectedNumber);
-        userInput.value = "";
         appendMessage(
-          `You selected option ${selectedNumber}. ${
-            selectedNumbers.length === 2
-              ? "Type 'done' to proceed."
-              : "Select another or type 'done'."
-          }`,
-          "user-message"
+          "Please use format like '1 and 2' or just enter a single number.",
+          "bot-message"
         );
       }
-    } else if (message.length > 1 && message !== "done") {
-      // If user types a new prompt, reset selection mode
+    }
+    // Handle other inputs as new prompts
+    else if (message.length > 0) {
       waitingForSelection = false;
       selectedNumbers = [];
       await handleNewPrompt(message);
